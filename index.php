@@ -1,0 +1,979 @@
+<?php
+session_start();
+// Si no existe la sesión, redirigir al login obligatoriamente
+if (!isset($_SESSION['usuario'])) {
+    header("Location: login.php");
+    exit();
+}
+?>
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Portal de control y recepción de streaming WebRTC para Cloud Gaming de ultra-baja latencia.">
+    <title>
+        TOKOW
+    </title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --bg-color: #0D0E1C;
+            --card-bg: rgba(124, 111, 247, 0.06);
+            --card-border: rgba(180, 174, 255, 0.12);
+            --primary: #7C6FF7;
+            --primary-glow: rgba(124, 111, 247, 0.35);
+            --accent: #4DC8A3;
+            --accent-glow: rgba(77, 200, 163, 0.3);
+            --text-main: #FFFFFF;
+            --text-muted: #B4AEFF;
+            --success: #4DC8A3;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(124, 111, 247, 0.15) 0%, transparent 45%),
+                radial-gradient(circle at 90% 80%, rgba(77, 200, 163, 0.1) 0%, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Topbar Header */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 28px;
+            background: rgba(8, 9, 15, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--card-border);
+            z-index: 100;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+        }
+
+        .brand-logo {
+            height: 38px;
+            width: auto;
+            object-fit: contain;
+            filter: drop-shadow(0 0 8px rgba(124, 111, 247, 0.45));
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .logo-container:hover .brand-logo {
+            transform: scale(1.08) rotate(-2deg);
+            filter: drop-shadow(0 0 16px rgba(77, 200, 163, 0.6));
+        }
+
+        .logo-glow {
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-glow);
+            animation: pulse-glow 2s infinite ease-in-out;
+        }
+
+        header h1 {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            background: linear-gradient(to right, #ffffff, #B4AEFF, var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-tag {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-main);
+            background: rgba(124, 111, 247, 0.15);
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(124, 111, 247, 0.3);
+        }
+
+        .logout-link {
+            font-size: 13px;
+            color: var(--danger);
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+        .logout-link:hover {
+            text-decoration: underline;
+        }
+
+        .connection-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 6px 16px;
+            border-radius: 99px;
+            border: 1px solid var(--card-border);
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--danger);
+            border-radius: 50%;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+
+        /* Dashboard Workspace Layout */
+        .workspace {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            height: calc(100vh - 73px);
+            position: relative;
+        }
+
+        /* Sidebar Control Center */
+        .sidebar {
+            background: rgba(13, 14, 28, 0.45);
+            border-right: 1px solid var(--card-border);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 10;
+        }
+
+        .panel-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .panel-card:hover {
+            border-color: rgba(180, 174, 255, 0.25);
+            box-shadow: 0 8px 32px rgba(124, 111, 247, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .input-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .styled-input {
+            background: rgba(13, 14, 28, 0.5);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: white;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .styled-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+            background: rgba(13, 14, 28, 0.7);
+        }
+
+        .btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary), #5B4CEB);
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            color: white;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px var(--primary-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            filter: brightness(1.1);
+            box-shadow: 0 6px 16px rgba(124, 111, 247, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-disconnect {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            box-shadow: none;
+            margin-top: 8px;
+        }
+
+        .btn-disconnect:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+
+        /* Metric Row list */
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            color: var(--text-muted);
+        }
+
+        .metric-value {
+            font-weight: 600;
+            color: white;
+        }
+
+        .metric-value.highlight {
+            color: var(--accent);
+        }
+
+        /* Keyboard layout Visualizer */
+        .keyboard-visualizer {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            justify-content: center;
+            max-width: 160px;
+            margin: 10px auto 14px;
+        }
+
+        .key-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 13px;
+            transition: background-color 0.1s, border-color 0.1s, box-shadow 0.1s, transform 0.1s;
+        }
+
+        .key-btn.active {
+            background: linear-gradient(135deg, var(--accent), #4DC8A3);
+            border-color: #4DC8A3;
+            box-shadow: 0 0 12px var(--accent-glow);
+            transform: scale(0.95);
+            color: #08090f;
+        }
+
+        .key-btn-space {
+            grid-column: span 3;
+            height: 32px;
+        }
+
+        /* Main Viewport Panel FIXED (Para evitar cortes de pantalla incompletos) */
+        .viewport-panel {
+            position: relative;
+            background: #020205;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+        }
+
+        .stream-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* CORRECCIÓN DE LA PANTALLA DE VIDEO */
+        video {
+            width: 100%;
+            height: 100%;
+            /* Si quieres conservar la proporción original sin cortes negros laterales usa 'contain' 
+               Si quieres que llene por completo el panel a pantalla completa sin importar distorsión usa 'cover' o 'fill' */
+            object-fit: contain;
+            background: #000000;
+            box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.8);
+            z-index: 1;
+        }
+
+        /* Glass splash screen */
+        .splash-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(13, 14, 28, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            padding: 30px;
+            transition: opacity 0.5s ease;
+        }
+
+        .splash-card {
+            background: rgba(13, 14, 28, 0.75);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .splash-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(124, 111, 247, 0.1) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .splash-icon {
+            margin-bottom: 24px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 90px;
+            height: 90px;
+            background: rgba(124, 111, 247, 0.08);
+            border: 2px solid rgba(180, 174, 255, 0.15);
+            border-radius: 24px;
+            animation: bounce 4s infinite ease-in-out;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .splash-icon:hover {
+            transform: scale(1.08) rotate(5deg);
+            border-color: var(--accent);
+            box-shadow: 0 0 20px var(--accent-glow);
+            background: rgba(77, 200, 163, 0.05);
+        }
+
+        .splash-logo {
+            height: 52px;
+            width: auto;
+            object-fit: contain;
+            filter: drop-shadow(0 0 10px rgba(124, 111, 247, 0.5));
+        }
+
+        .splash-card h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: white;
+        }
+
+        .splash-card p {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .status-message-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            font-family: monospace;
+            color: #d1d5db;
+        }
+
+        /* Animations */
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 12px var(--primary-glow);
+            }
+
+            50% {
+                transform: scale(1.15);
+                box-shadow: 0 0 24px var(--primary);
+            }
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-8px);
+            }
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s infinite linear;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none !important;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Notification Banner */
+        .toast {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(18, 20, 32, 0.9);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 13px;
+            color: white;
+            z-index: 1000;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            transition: opacity 0.3s;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="logo-container">
+            <img src="logo.png" alt="Logo" class="brand-logo">
+            <div class="logo-glow"></div>
+            <h1>TOKOW</h1>
+        </div>
+
+        <div class="header-right">
+            <div class="user-tag">
+                🎮 @
+                <?php echo htmlspecialchars($_SESSION['usuario']); ?>
+            </div>
+            <a href="logout.php" class="logout-link">Cerrar Sesión</a>
+
+            <div class="connection-badge" id="hud-status">
+                <div class="status-dot" id="hud-status-dot"></div>
+                <span id="hud-status-text">Desconectado</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="workspace">
+        <aside class="sidebar">
+            <section class="panel-card" id="connection-panel">
+                <h2 class="panel-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />
+                    </svg>
+                    Conexión de Señales
+                </h2>
+                <div class="input-group">
+                    <label class="input-label" for="server-ip-input">IP del Servidor</label>
+                    <input type="text" id="server-ip-input" class="styled-input" placeholder="Ej. 10.121.44.125">
+                </div>
+                <button class="btn" id="connect-btn">
+                    <span>Iniciar Conexión</span>
+                </button>
+                <button class="btn btn-disconnect hidden" id="disconnect-btn">
+                    <span>Desconectar</span>
+                </button>
+            </section>
+
+            <section class="panel-card" id="metrics-panel">
+                <h2 class="panel-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                    </svg>
+                    Métricas de Red
+                </h2>
+                <div class="metric-row">
+                    <span class="metric-label">Latencia WebRTC</span>
+                    <span class="metric-value highlight" id="metric-latency">-- ms</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Estado Socket</span>
+                    <span class="metric-value" id="metric-ws-state">Cerrado</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Canal WebRTC</span>
+                    <span class="metric-value" id="metric-webrtc-state">Inactivo</span>
+                </div>
+            </section>
+
+            <section class="panel-card" id="keyboard-panel">
+                <h2 class="panel-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
+                        <rect x="2" y="4" width="20" height="16" rx="2" ry="2" />
+                        <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M18 12h.01M7 16h10" />
+                    </svg>
+                    Teclas Activas
+                </h2>
+                <div class="keyboard-visualizer">
+                    <div class="key-btn" style="opacity: 0;"></div>
+                    <div class="key-btn" id="key-w">W</div>
+                    <div class="key-btn" style="opacity: 0;"></div>
+
+                    <div class="key-btn" id="key-a">A</div>
+                    <div class="key-btn" id="key-s">S</div>
+                    <div class="key-btn" id="key-d">D</div>
+
+                    <div class="key-btn" id="key-arrowup">▲</div>
+                    <div class="key-btn" id="key-arrowdown">▼</div>
+                    <div class="key-btn" id="key-arrowleft">◀</div>
+
+                    <div class="key-btn key-btn-space" id="key-space">Espacio</div>
+                    <div class="key-btn key-btn-space" id="key-enter">Enter</div>
+                </div>
+            </section>
+        </aside>
+
+        <section class="viewport-panel">
+            <div class="stream-wrapper">
+                <video id="game-stream" autoplay playsinline muted></video>
+
+                <div class="splash-overlay" id="splash-screen">
+                    <div class="splash-card">
+                        <div class="splash-icon">
+                            <img src="logo.png" alt="Logo" class="splash-logo">
+                        </div>
+                        <h2>Esperando conexión</h2>
+                        <p>Establece la conexión de señalización para recibir el flujo de video interactivo del Host en
+                            tiempo real.</p>
+
+                        <div class="status-message-box" id="splash-status-message">
+                            Estado: Listo para conectar.
+                        </div>
+
+                        <button class="btn" id="splash-action-btn">
+                            <span>Conectar Consola</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div class="toast hidden" id="toast-banner"></div>
+
+    <script>
+        // Server IP detection
+        const defaultServerIp = window.location.hostname || '10.209.107.107';
+        const serverIpInput = document.getElementById('server-ip-input');
+        serverIpInput.value = defaultServerIp === 'localhost' || defaultServerIp === '127.0.0.1' ? '10.121.44.107' : defaultServerIp;
+
+        const video = document.getElementById('game-stream');
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const splashActionBtn = document.getElementById('splash-action-btn');
+        const splashStatusMessage = document.getElementById('splash-status-message');
+        const splashScreen = document.getElementById('splash-screen');
+        const hudStatusDot = document.getElementById('hud-status-dot');
+        const hudStatusText = document.getElementById('hud-status-text');
+        const metricWsState = document.getElementById('metric-ws-state');
+        const metricWebrtcState = document.getElementById('metric-webrtc-state');
+        const metricLatency = document.getElementById('metric-latency');
+        const toastBanner = document.getElementById('toast-banner');
+
+        let ws = null;
+        let peerConnection = null;
+        let latencyInterval = null;
+
+        // UI helper to update statuses
+        function updateStatus(state, message) {
+            console.log(`[STATUS UPDATE] State: ${state}, Msg: ${message}`);
+            splashStatusMessage.innerText = `Estado: ${message}`;
+            hudStatusText.innerText = message;
+
+            // Dot and badge adjustments
+            hudStatusDot.style.boxShadow = 'none';
+            if (state === 'disconnected' || state === 'error') {
+                hudStatusDot.style.backgroundColor = 'var(--danger)';
+                metricWsState.innerText = 'Cerrado';
+                metricWsState.style.color = 'var(--danger)';
+                metricWebrtcState.innerText = 'Inactivo';
+                metricWebrtcState.style.color = 'var(--text-muted)';
+
+                connectBtn.classList.remove('hidden');
+                disconnectBtn.classList.add('hidden');
+                splashActionBtn.classList.remove('hidden');
+
+                // Show splash overlay
+                splashScreen.classList.remove('hidden');
+                clearInterval(latencyInterval);
+            }
+            else if (state === 'connecting' || state === 'negotiating') {
+                hudStatusDot.style.backgroundColor = 'var(--warning)';
+                metricWsState.innerText = 'Conectando';
+                metricWsState.style.color = 'var(--warning)';
+
+                connectBtn.classList.add('hidden');
+                disconnectBtn.classList.remove('hidden');
+                splashActionBtn.classList.add('hidden');
+            }
+            else if (state === 'ready') {
+                hudStatusDot.style.backgroundColor = 'var(--warning)';
+                hudStatusDot.style.boxShadow = '0 0 8px var(--warning)';
+                metricWsState.innerText = 'Abierto';
+                metricWsState.style.color = 'var(--success)';
+            }
+            else if (state === 'live') {
+                hudStatusDot.style.backgroundColor = 'var(--success)';
+                hudStatusDot.style.boxShadow = '0 0 12px var(--success)';
+                metricWebrtcState.innerText = 'Conectado';
+                metricWebrtcState.style.color = 'var(--success)';
+
+                // Hide splash overlay
+                splashScreen.classList.add('hidden');
+                startLatencyCalculation();
+            }
+        }
+
+        // Connect handler
+        function initiateConnection() {
+            const ip = serverIpInput.value.trim();
+            if (!ip) {
+                showToast("Por favor, ingresa una dirección IP válida.");
+                return;
+            }
+
+            updateStatus('connecting', 'Conectando al servidor...');
+
+            try {
+                if (ws) ws.close();
+                ws = new WebSocket(`ws://${ip}:8080`);
+            } catch (e) {
+                updateStatus('error', 'Error al crear WebSocket');
+                showToast(e.message);
+                return;
+            }
+
+            ws.onopen = () => {
+                updateStatus('ready', 'Conectado a señalización. Esperando host...');
+                ws.send(JSON.stringify({ type: 'register-client' }));
+                iniciarWebRTC();
+            };
+
+            ws.onmessage = async (message) => {
+                try {
+                    const data = JSON.parse(message.data);
+
+                    if (data.type === 'client-joined' || data.type === 'register-host') {
+                        updateStatus('negotiating', 'Creando oferta WebRTC...');
+
+                        // Clean peerConnection transceivers
+                        peerConnection.getTransceivers().forEach(t => {
+                            try { t.stop(); } catch (e) { }
+                        });
+
+                        peerConnection.addTransceiver('video', { direction: 'recvonly' });
+                        const offer = await peerConnection.createOffer();
+                        await peerConnection.setLocalDescription(offer);
+
+                        ws.send(JSON.stringify({ type: 'offer', offer: offer }));
+                        updateStatus('negotiating', 'Oferta enviada al host.');
+                    }
+                    else if (data.answer) {
+                        updateStatus('connecting', 'Respuesta recibida. Conectando...');
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+                    }
+                    else if (data.candidate && peerConnection) {
+                        try {
+                            await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                        } catch (e) {
+                            console.warn("ICE candidate error:", e);
+                        }
+                    }
+                } catch (err) {
+                    console.error("Signal message error:", err);
+                }
+            };
+
+            ws.onclose = () => {
+                updateStatus('disconnected', 'Conexión del servidor cerrada');
+                cleanupWebRTC();
+            };
+
+            ws.onerror = (err) => {
+                updateStatus('error', 'Fallo de conexión en el servidor');
+                cleanupWebRTC();
+            };
+        }
+
+        // Disconnect handler
+        function terminateConnection() {
+            if (ws) ws.close();
+            cleanupWebRTC();
+            updateStatus('disconnected', 'Desconectado manualmente');
+        }
+
+        // WebRTC setup
+        function iniciarWebRTC() {
+            cleanupWebRTC();
+
+            peerConnection = new RTCPeerConnection({
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            });
+
+            peerConnection.ontrack = (event) => {
+                updateStatus('live', 'Flujo de video en vivo');
+                video.srcObject = event.streams[0];
+                video.play().catch(() => {
+                    updateStatus('live', 'Haz clic aquí para reproducir flujo');
+                });
+            };
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate && ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
+                }
+            };
+
+            peerConnection.onconnectionstatechange = () => {
+                if (peerConnection.connectionState === 'connected') {
+                    updateStatus('live', 'Streaming en vivo');
+                } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'closed') {
+                    updateStatus('error', 'Flujo WebRTC desconectado');
+                }
+            };
+        }
+
+        function cleanupWebRTC() {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            video.srcObject = null;
+        }
+
+        // Latency metrics tracking
+        function startLatencyCalculation() {
+            clearInterval(latencyInterval);
+            latencyInterval = setInterval(async () => {
+                if (!peerConnection) return;
+                try {
+                    const stats = await peerConnection.getStats();
+                    stats.forEach(report => {
+                        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                            const rtt = report.currentRoundTripTime;
+                            if (rtt !== undefined) {
+                                metricLatency.innerText = `${Math.round(rtt * 1000)} ms`;
+                            }
+                        }
+                    });
+                } catch (e) { }
+            }, 2000);
+        }
+
+        // Toast messages
+        function showToast(msg) {
+            toastBanner.innerText = msg;
+            toastBanner.classList.remove('hidden');
+            setTimeout(() => toastBanner.classList.add('hidden'), 4000);
+        }
+
+        // Keyboard active styling
+        const keyMap = {
+            'w': 'key-w',
+            'a': 'key-a',
+            's': 'key-s',
+            'd': 'key-d',
+            'arrowup': 'key-arrowup',
+            'arrowdown': 'key-arrowdown',
+            'arrowleft': 'key-arrowleft',
+            'arrowright': 'key-arrowright',
+            ' ': 'key-space',
+            'spacebar': 'key-space',
+            'enter': 'key-enter'
+        };
+
+        function highlightKey(key, isPressed) {
+            const mappedId = keyMap[key.toLowerCase()];
+            if (mappedId) {
+                const element = document.getElementById(mappedId);
+                if (element) {
+                    if (isPressed) element.classList.add('active');
+                    else element.classList.remove('active');
+                }
+            }
+        }
+
+        // Listeners for input simulation (only if focus is not in settings inputs)
+        window.addEventListener('keydown', (e) => {
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+                return;
+            }
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'input', action: 'keydown', key: e.key }));
+                highlightKey(e.key, true);
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+                return;
+            }
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'input', action: 'keyup', key: e.key }));
+                highlightKey(e.key, false);
+            }
+        });
+
+        video.addEventListener("mousemove", (e) => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+            const rect = video.getBoundingClientRect();
+
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+
+            ws.send(JSON.stringify({
+                type: "mouse-move",
+                x: x,
+                y: y
+            }));
+        });
+
+        video.addEventListener("click", (e) => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+            ws.send(JSON.stringify({
+                type: "mouse-click",
+                button: "left"
+            }));
+        });
+
+        video.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+            ws.send(JSON.stringify({
+                type: "mouse-click",
+                button: "right"
+            }));
+        });
+
+
+        // Click to start stream manually if play fails
+        window.addEventListener('click', () => {
+            if (video.srcObject && video.paused) {
+                video.play();
+                updateStatus('live', 'Streaming en vivo');
+            }
+        });
+
+        // Form listeners
+        connectBtn.addEventListener('click', initiateConnection);
+        splashActionBtn.addEventListener('click', initiateConnection);
+        disconnectBtn.addEventListener('click', terminateConnection);
+    </script>
+</body>
+
+</html>
